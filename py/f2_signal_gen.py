@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.10.2017 11:42
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.10.2017 16:44
 import numpy as np
 import tempfile
 import subprocess
@@ -13,11 +13,11 @@ from rtl import *
 #Simple buffer template
 class f2_signal_gen(thesdk):
     def __init__(self,*arg): 
-        self.proplist = [ 'M' 'K' 'Rs' 'bbsigmode' ];  #Properties that can be propagated from parent
-        self.Rs = 1                                    #Sampling frequency
+        self.proplist = [ 'M' 'K' 'Rs' 'bbsigdict' ];  #Properties that can be propagated from parent
+        self.Rs = 100e6                                #Sampling frequency
         self.M=4                                       #Number of antennas
         self.K=2                                       #Number of users
-        self.bbsigmode='sinusoid';                     #Mode of the basebans signal. Let's start with sinusoids
+        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[1e6 , 10e6, 15e6 ], 'lenght':2**14 };                     #Mode of the baseband signal. Let's start with sinusoids
         self.model='py';                               #can be set externally, but is not propagated
         self._Z = refptr();
         self._classfile=__file__
@@ -25,19 +25,15 @@ class f2_signal_gen(thesdk):
             parent=arg[0]
             self.copy_propval(parent,self.proplist)
             self.parent =parent;
+        self.init()
 
     def init(self):
-        pass
-    def run(self):
-        if mode=='sinusoid'
-            phase=
-            out=np.array(self.iptr_A.Value)
-            if par:
-                queue.put(out)
+        if self.bbigdict['mode']=='sinusoid'
+            length=self.bbsigdict['length']
+            phi=(1/np.transpose(np.array(np.mat(bbsigdict['freqs']))))*np.array(range(length))*np.pi/(self.Rs)
+            out=np.exp(1j*phi)
             self._Z.Value=out
-        else: 
-          try:
-              os.remove(self._infile)
-          except:
-              pass
+
+    def run(self):
+        self.init()
 
