@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.10.2017 21:29
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 04.10.2017 09:58
 import numpy as np
 import tempfile
 import subprocess
@@ -29,11 +29,15 @@ class f2_signal_gen(thesdk):
 
     def init(self):
         if self.bbsigdict['mode']=='sinusoid':
+            self.sinusoid()
+
+    def run(self): #Just an alias for init to be consistent: run() always executes the core function
+        self.init()
+
+    def sinusoid(self):
             length=self.bbsigdict['length']
             phi=np.transpose(np.array(np.mat(self.bbsigdict['freqs'])))*np.array(range(length))*2*2*np.pi/(self.Rs)
             out=np.sum(np.exp(1j*phi),0)/len(self.bbsigdict['freqs'])
-            self._Z.Value=np.ones((self.M,1))*out
+            self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
 
-    def run(self):
-        self.init()
 
