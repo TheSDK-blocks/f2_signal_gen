@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.10.2017 16:44
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.10.2017 21:29
 import numpy as np
 import tempfile
 import subprocess
@@ -17,7 +17,7 @@ class f2_signal_gen(thesdk):
         self.Rs = 100e6                                #Sampling frequency
         self.M=4                                       #Number of antennas
         self.K=2                                       #Number of users
-        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[1e6 , 10e6, 15e6 ], 'lenght':2**14 };                     #Mode of the baseband signal. Let's start with sinusoids
+        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14 };                     #Mode of the baseband signal. Let's start with sinusoids
         self.model='py';                               #can be set externally, but is not propagated
         self._Z = refptr();
         self._classfile=__file__
@@ -28,11 +28,11 @@ class f2_signal_gen(thesdk):
         self.init()
 
     def init(self):
-        if self.bbigdict['mode']=='sinusoid'
+        if self.bbsigdict['mode']=='sinusoid':
             length=self.bbsigdict['length']
-            phi=(1/np.transpose(np.array(np.mat(bbsigdict['freqs']))))*np.array(range(length))*np.pi/(self.Rs)
-            out=np.exp(1j*phi)
-            self._Z.Value=out
+            phi=np.transpose(np.array(np.mat(self.bbsigdict['freqs'])))*np.array(range(length))*2*2*np.pi/(self.Rs)
+            out=np.sum(np.exp(1j*phi),0)/len(self.bbsigdict['freqs'])
+            self._Z.Value=np.ones((self.M,1))*out
 
     def run(self):
         self.init()
