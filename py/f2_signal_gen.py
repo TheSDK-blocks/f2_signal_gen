@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.10.2017 17:23
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 06.10.2017 14:05
 import numpy as np
 import tempfile
 import subprocess
@@ -37,6 +37,8 @@ class f2_signal_gen(thesdk):
             self.sinusoid()
         if self.bbsigdict['mode']=='ofdm_sinusoid':
             self.ofdm_sinusoid()
+        if self.bbsigdict['mode']=='ofdm_random_qam':
+            self.ofdm_random_qam()
 
     def run(self): #Just an alias for init to be consistent: run() always executes the core function
         self.init()
@@ -60,6 +62,32 @@ class f2_signal_gen(thesdk):
             pilotsymbols=frame[:,ofdmdict['pilot_loc']]
             out=np.ones((self.M,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
             self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
-
+    
+    def ofdm_random_qam(self):
+            #Local vars just to clear to code
+            ofdmdict=self.ofdmdict
+            bbsigdict=self.bbsigdict
+            framelen=ofdmdict['framelen']
+            length=bbsigdict['length']
+            CPlen=ofdmdict['CPlen']
+            QAM=bbsigdict['QAM']
+            #The length is approx this many frames
+            frames=np.floor(length/(framelen+CPlen))
+            bitspersymbol=np.log2(QAM).astype(int)
+            
+            #generate random bitstream per antenna
+            bitstream=np.random.randint(2,size=(self.M,frames*bitspersymbol*framelen))
+            #Init the qam signal, frame and out
+            qamsignal=np.zeros((self.M,frames*framelen),dtype='complex')
+            frame=np.zeros((frames,framelen))
+            out=np.zeros((self.M,frames*(framelen+CPlen)),dtype='complex')
+            for i in range(bitstream.shape[0]):
+                wordstream, qamsignal[i]= mdm.qamModulateBitStream(bitstream[i], QAM)
+                qamsignal[i]=qamsignal[i].reshape((1,qamsignal.shape[1]))
+                frame= qamsignal[i].reshape((-1,framelen))
+                datasymbols=frame[:,ofdmdict['data_loc']]
+                pilotsymbols=frame[:,ofdmdict['pilot_loc']]
+                out[i]=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
+            self._Z.Value=out
 
 
