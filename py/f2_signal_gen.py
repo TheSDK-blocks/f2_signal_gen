@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.10.2017 16:15
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.10.2017 17:23
 import numpy as np
 import tempfile
 import subprocess
@@ -16,12 +16,12 @@ from rtl import *
 #Simple buffer template
 class f2_signal_gen(thesdk):
     def __init__(self,*arg): 
-        self.proplist = [ 'M', 'K', 'Rs', 'bbsigdict', 'ofdmDict' ];  #Properties that can be propagated from parent
+        self.proplist = [ 'M', 'K', 'Rs', 'bbsigdict', 'ofdmdict' ];  #Properties that can be propagated from parent
         self.Rs = 100e6                                #Sampling frequency
         self.M=4                                       #Number of antennas
         self.K=2                                       #Number of users
         self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14 }; #Mode of the baseband signal. Let's start with sinusoids
-        self.ofdmDict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 
+        self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 
         27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
         self.model='py';                               #can be set externally, but is not propagated
         self._Z = refptr();
@@ -51,14 +51,14 @@ class f2_signal_gen(thesdk):
             self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
 
     def ofdm_sinusoid(self):
-            ofdmDict=self.ofdmDict
-            length=np.floor(self.bbsigdict['length']/ofdmDict['framelen'])
-            signalindexes=np.round(np.array(self.bbsigdict['freqs'])/self.Rs*ofdmDict['framelen']).astype(int)
-            frame=np.zeros((length,ofdmDict['framelen']))
+            ofdmdict=self.ofdmdict
+            length=np.floor(self.bbsigdict['length']/ofdmdict['framelen'])
+            signalindexes=np.round(np.array(self.bbsigdict['freqs'])/self.Rs*ofdmdict['framelen']).astype(int)
+            frame=np.zeros((length,ofdmdict['framelen']))
             frame[:,signalindexes]=1
-            datasymbols=frame[:,ofdmDict['data_loc']]
-            pilotsymbols=frame[:,ofdmDict['pilot_loc']]
-            out=np.ones((self.M,1))*mdm.ofdmMod(ofdmDict,datasymbols,pilotsymbols)
+            datasymbols=frame[:,ofdmdict['data_loc']]
+            pilotsymbols=frame[:,ofdmdict['pilot_loc']]
+            out=np.ones((self.M,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
             self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
 
 
