@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 06.10.2017 14:05
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 16.10.2017 19:51
 import numpy as np
 import tempfile
 import subprocess
@@ -16,10 +16,10 @@ from rtl import *
 #Simple buffer template
 class f2_signal_gen(thesdk):
     def __init__(self,*arg): 
-        self.proplist = [ 'M', 'K', 'Rs', 'bbsigdict', 'ofdmdict' ];  #Properties that can be propagated from parent
-        self.Rs = 100e6                                #Sampling frequency
-        self.M=4                                       #Number of antennas
-        self.K=2                                       #Number of users
+        self.proplist = [ 'Txantennas', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ];  #Properties that can be propagated from parent
+        self.Rs = 100e6                         #Sampling frequency
+        self.Txantennas=4                       #Number of transmitting antennas
+        self.Users=2                            #Number of users
         self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14 }; #Mode of the baseband signal. Let's start with sinusoids
         self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 
         27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
@@ -49,8 +49,14 @@ class f2_signal_gen(thesdk):
     def sinusoid(self):
             length=self.bbsigdict['length']
             phi=np.transpose(np.array(np.mat(self.bbsigdict['freqs'])))*np.array(range(length))*2*2*np.pi/(self.Rs)
-            out=np.sum(np.exp(1j*phi),0)/len(self.bbsigdict['freqs'])
-            self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
+            usersig=np.transpose(np.ones((self.Txantennas,1))*np.sum(np.exp(1j*phi),0)/len(self.bbsigdict['freqs'])) #All antennas emit the same signal
+
+            #All users have the same signal
+            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
+            for i in range(self.Users):
+                out[i,:,:]=usersig
+
+            self._Z.Value=out 
 
     def ofdm_sinusoid(self):
             ofdmdict=self.ofdmdict
@@ -60,8 +66,16 @@ class f2_signal_gen(thesdk):
             frame[:,signalindexes]=1
             datasymbols=frame[:,ofdmdict['data_loc']]
             pilotsymbols=frame[:,ofdmdict['pilot_loc']]
-            out=np.ones((self.M,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
-            self._Z.Value=np.ones((self.M,1))*out #All antennas emit the same signal
+            out=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
+            
+            out=np.zeros(self.Users,usersig.shape[0],usersig,shape[1])
+            for i in range(self.Users):
+                out[i,:,:]=usersig
+
+            self._Z.Value=out 
+
+
+
     
     def ofdm_random_qam(self):
             #Local vars just to clear to code
@@ -75,19 +89,24 @@ class f2_signal_gen(thesdk):
             frames=np.floor(length/(framelen+CPlen))
             bitspersymbol=np.log2(QAM).astype(int)
             
-            #generate random bitstream per antenna
-            bitstream=np.random.randint(2,size=(self.M,frames*bitspersymbol*framelen))
+            #generate random bitstreams per antenna
+            bitstream=np.random.randint(2,size=(self.Txantennas,frames*bitspersymbol*framelen))
             #Init the qam signal, frame and out
-            qamsignal=np.zeros((self.M,frames*framelen),dtype='complex')
+            qamsignal=np.zeros((self.Txantennas,frames*framelen),dtype='complex')
             frame=np.zeros((frames,framelen))
-            out=np.zeros((self.M,frames*(framelen+CPlen)),dtype='complex')
+            usersig=np.zeros((self.Txantennas,frames*(framelen+CPlen)),dtype='complex')
             for i in range(bitstream.shape[0]):
                 wordstream, qamsignal[i]= mdm.qamModulateBitStream(bitstream[i], QAM)
                 qamsignal[i]=qamsignal[i].reshape((1,qamsignal.shape[1]))
                 frame= qamsignal[i].reshape((-1,framelen))
                 datasymbols=frame[:,ofdmdict['data_loc']]
                 pilotsymbols=frame[:,ofdmdict['pilot_loc']]
-                out[i]=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
-            self._Z.Value=out
+                usersig[i]=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
+
+            out=np.zeros(self.Users,usersig.shape[0],usersig,shape[1])
+            for i in range(self.Users):
+                out[i,:,:]=usersig
+
+            self._Z.Value=out 
 
 
