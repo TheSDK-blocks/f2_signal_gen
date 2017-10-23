@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 20.10.2017 13:35
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 23.10.2017 13:26
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
 sys.path.append ('/home/projects/fader/TheSDK/Entities/thesdk/py')
@@ -70,9 +70,9 @@ class f2_signal_gen(thesdk):
             frame[:,signalindexes]=1
             datasymbols=frame[:,ofdmdict['data_loc']]
             pilotsymbols=frame[:,ofdmdict['pilot_loc']]
-            out=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
+            usersig=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
             
-            out=np.zeros(self.Users,usersig.shape[0],usersig,shape[1])
+            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
             for i in range(self.Users):
                 out[i,:,:]=usersig
 
@@ -97,21 +97,25 @@ class f2_signal_gen(thesdk):
             bitstream=np.random.randint(2,size=(self.Txantennas,frames*bitspersymbol*framelen))
             #Init the qam signal, frame and out
             qamsignal=np.zeros((self.Txantennas,frames*framelen),dtype='complex')
-            frame=np.zeros((frames,framelen))
+            frame=np.zeros((frames,framelen),dtype='complex')
             usersig=np.zeros((self.Txantennas,frames*(framelen+CPlen)),dtype='complex')
-            for i in range(bitstream.shape[0]):
+
+            for i in range(self.Txantennas):
                 wordstream, qamsignal[i]= mdm.qamModulateBitStream(bitstream[i], QAM)
                 qamsignal[i]=qamsignal[i].reshape((1,qamsignal.shape[1]))
                 frame= qamsignal[i].reshape((-1,framelen))
                 datasymbols=frame[:,ofdmdict['data_loc']]
                 pilotsymbols=frame[:,ofdmdict['pilot_loc']]
                 usersig[i]=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
-
-            out=np.zeros(self.Users,usersig.shape[0],usersig,shape[1])
+                
+            usersig=usersig.T
+            print(usersig.shape)
+            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]))
             for i in range(self.Users):
+                print(usersig.shape)
                 out[i,:,:]=usersig
 
-            self._Z.Value=out/np.st 
+            self._Z.Value=out 
 
     def set_transmit_power(self):
          for user in range(self._Z.Value.shape[0]):
