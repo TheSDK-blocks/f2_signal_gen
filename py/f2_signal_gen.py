@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 12:47
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 16:02
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -35,9 +35,8 @@ class f2_signal_gen(thesdk):
         self.Txantennas=4                       #Number of transmitting antennas
         self.Txpower=30                         #Output power per antenna in dBm
         self.Users=2                            #Number of users
-        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':20e6 }; #Mode of the baseband signal. Let's start with sinusoids
-        self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 
-        27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
+        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':20e6 };  #Mode of the baseband signal. Let's start with sinusoids
+        self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
 
         self.model='py';                        #can be set externally, but is not propagated
         self._filterlist=[]                     #list of interpolation filters
@@ -148,6 +147,10 @@ class f2_signal_gen(thesdk):
                 frame= qamsignal[i].reshape((-1,framelen)) #The OFDM frames
                 datasymbols=frame[:,ofdmdict['data_loc']]   #Set the data
                 pilotsymbols=frame[:,ofdmdict['pilot_loc']] #In this case, also pilot carry bits
+                if (factor({'n':self.Rs/BBRs}))[0] != 2:
+                    print("SHIT ALERT: %s: The first interpolation factor for 802.11n is more than 2 \n and I'am too lazy to implement dedicated filter mask" %(self.__class__.__name__))
+                    quit()
+
                 interpolated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols) #Variable for interpolation
                 interpolated=interpolated.reshape((-1,(framelen+CPlen)))
                 interpolated=self.interpolate_at_ofdm({'signal':interpolated})
@@ -264,14 +267,18 @@ def window(argdict={'Tr':100e-9, 'length':478, 'fs':80e6, 'duration':240 }):
 def generate_interpolation_filterlist(argdict={'interp_factor':1}):
     #Use argument dictionary. Makes modifications easier.
     interp_factor=argdict['interp_factor']
-
+    
     attenuation=70 #Desired attenuation in decibels
-    numtaps=65     # TAps for the first filterThis should be somehow verified
     factors=factor({'n':interp_factor})
     print(factors)
     fsample=1
-    BW=0.47
+    BW=0.45
+    numtaps=65     # TAps for the first filterThis should be somehow verified
+    #Harris rule. This is to control stability of Rmez
+    #numtaps= int(np.ceil(attenuation*fsample*factors[0]/(fsample/2-BW)))    # TAps for the first filterThis should be somehow verified
     desired=np.array([ 1, 10**(-attenuation/10)] )
+    #check the mask specs from standard 
+    #mask=np.array([ 1, 10**(-28/10)    ] )
     filterlist=list()
     if interp_factor >1:
         for i in factors:
