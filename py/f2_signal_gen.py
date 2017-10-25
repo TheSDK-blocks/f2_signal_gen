@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 24.10.2017 20:51
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 24.10.2017 21:28
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
 sys.path.append ('/home/projects/fader/TheSDK/Entities/thesdk/py')
@@ -70,13 +70,40 @@ class f2_signal_gen(thesdk):
 
     def ofdm_sinusoid(self):
             ofdmdict=self.ofdmdict
-            length=np.floor(self.bbsigdict['length']/ofdmdict['framelen'])
-            signalindexes=np.round(np.array(self.bbsigdict['freqs'])/self.Rs*ofdmdict['framelen']).astype(int)
-            frame=np.zeros((length,ofdmdict['framelen']))
+
+            bbsigdict=self.bbsigdict
+            framelen=ofdmdict['framelen']
+            length=bbsigdict['length']
+            frames=np.floor(length/framelen)
+
+            CPlen=ofdmdict['CPlen']
+            #QAM=bbsigdict['QAM']
+            BBRs=bbsigdict['BBRs']
+            signalindexes=np.round(np.array(self.bbsigdict['freqs'])/self.Rs*framelen).astype(int)
+            frame=np.zeros((frames,framelen))
             frame[:,signalindexes]=1
             datasymbols=frame[:,ofdmdict['data_loc']]
             pilotsymbols=frame[:,ofdmdict['pilot_loc']]
-            usersig=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
+            interpolated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
+            interpolated=interpolated.reshape((-1,(framelen+CPlen)))
+            interpolated=self.interpolate_at_ofdm({'signal':interpolated})
+            length=interpolated.shape[1]
+            duration=(framelen+CPlen)*self.Rs/BBRs
+            overlap=(length-duration) #Now this is even, but necessarily. Handle later
+            win=window({'Tr':100e-9, 'length':length, 'fs':self.Rs, 'duration': duration})
+            interpolated=interpolated*win
+            chained=interpolated[0,:]
+            for k in range(1,interpolated.shape[0]):
+                #print(np.zeros((int(length-overlap))))
+                a=np.r_[chained, np.zeros((int(length-overlap)))]
+                b=np.r_[np.zeros((int(chained.shape[0]-overlap))), interpolated[k,:] ]
+                a.shape=(1,-1)
+                b.shape=(1,-1)
+                chained=np.sum(np.r_['0',a,b],axis=0)
+
+            #usersig=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
+            chained.shape=(1,-1)
+            usersig=np.ones((self.Txantennas,1))*chained.T
             
             out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
             for i in range(self.Users):
