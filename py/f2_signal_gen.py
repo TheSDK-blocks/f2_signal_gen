@@ -1,5 +1,5 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 24.10.2017 17:02
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 24.10.2017 20:51
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
 sys.path.append ('/home/projects/fader/TheSDK/Entities/thesdk/py')
@@ -100,7 +100,7 @@ class f2_signal_gen(thesdk):
             frames=np.floor(length/(framelen+CPlen))
             bitspersymbol=np.log2(QAM).astype(int)
             
-            #generate random bitstreams per antenna
+            #generate random bitstreams per antenna (not per user)
             bitstream=np.random.randint(2,size=(self.Txantennas,frames*bitspersymbol*framelen))
             #Init the qam signal, frame and out
             qamsignal=np.zeros((self.Txantennas,frames*framelen),dtype='complex')
@@ -116,20 +116,35 @@ class f2_signal_gen(thesdk):
                 interpolated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
                 interpolated=interpolated.reshape((-1,(framelen+CPlen)))
                 interpolated=self.interpolate_at_ofdm({'signal':interpolated})
-                win=window({'Tr':100e-9, 'length':interpolated.shape[1], 'fs':80e6, 'duration': (framelen+CPlen)*self.Rs/BBRs})
-                interpolated=interpolated*win               
-                print(interpolated.shape)
+                length=interpolated.shape[1]
+                duration=(framelen+CPlen)*self.Rs/BBRs
+                overlap=(length-duration) #Now this is even, but necessarily. Handle later
+                win=window({'Tr':100e-9, 'length':length, 'fs':self.Rs, 'duration': duration})
+                interpolated=interpolated*win
+                chained=interpolated[0,:]
+                print(chained.shape[0])
+                for k in range(1,interpolated.shape[0]):
+                    #print(np.zeros((int(length-overlap))))
+                    a=np.r_[chained, np.zeros((int(length-overlap)))]
+                    b=np.r_[np.zeros((int(chained.shape[0]-overlap))), interpolated[k,:] ]
+                    a.shape=(1,-1)
+                    b.shape=(1,-1)
+                    chained=np.sum(np.r_['0',a,b],axis=0)
+                
                 if i==0:
-                    usersig=np.zeros((self.Txantennas,interpolated.shape[0]*interpolated.shape[1]),dtype='complex')
-                    usersig[i,:]=interpolated.reshape(1,-1)
+                    #usersig=np.zeros((self.Txantennas,interpolated.shape[0]*interpolated.shape[1]),dtype='complex')
+                    usersig=np.zeros((self.Txantennas,chained.shape[0]),dtype='complex')
+                    #usersig[i,:]=interpolated.reshape(1,-1)
+                    usersig[i,:]=chained
                 else:
-                    usersig[i,:]=interpolated.reshape(1,-1)
+                    usersig[i,:]=chained
+                    #usersig[i,:]=interpolated.reshape(1,-1)
                 
             usersig=usersig.T #usersig.shape[0] is time
-            print(usersig.shape)
-            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]))
+            #print(usersig.shape)
+            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
             for i in range(self.Users):
-                print(usersig.shape)
+             #   print(usersig.shape)
                 out[i,:,:]=usersig
 
             self._Z.Value=out 
@@ -137,7 +152,7 @@ class f2_signal_gen(thesdk):
     def set_transmit_power(self):
          for user in range(self._Z.Value.shape[0]):
              for antenna in range(self._Z.Value.shape[2]):
-                 self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/np.std(self._Z.Value[user,:,antenna])*np.sqrt(10**(self.Txpower/10)*1e-3*50) #Rms voltage normalized to 50 ohm
+                 self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/np.std(self._Z.Value[user,:,antenna])*np.sqrt(1e-3*50*10**(self.Txpower/10)) #Rms voltage normalized to 50 ohm
                  #print(np.std(self._Z.Value[user,:,antenna]))
 
 
@@ -191,7 +206,7 @@ class f2_signal_gen(thesdk):
                 signali[symbol,:]=t
         print("Signal length is now %i" %(signali.shape[1]))
         self._filterlist=filterlist
-        print(filterlist)
+        #print(filterlist)
         return signali
 
 #Window to taper OFDM symbols
@@ -224,7 +239,7 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
     factors=factor(interp_factor)
     print(factors)
     fsample=1
-    BW=0.45
+    BW=0.47
     desired=np.array([ 1, 10**(-attenuation/10)] )
     filterlist=list()
     if interp_factor >1:
