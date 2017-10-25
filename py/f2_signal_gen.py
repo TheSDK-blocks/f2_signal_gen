@@ -1,5 +1,13 @@
 # f2_signal_gen class 
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 24.10.2017 21:28
+# Notes, this is an _Generator_ this system should not consider if the signal 
+# is generated for downlink or uplink
+# Assumptions:
+#   Every transmitter may have multiple TX antennas
+#   Every transmitter has the same number of antennas
+#   Users can be in the same (Downlink) of in different (Uplink) transmitter
+#   Generator does not take into account where the user signals are merged
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 12:47
+ 
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
 sys.path.append ('/home/projects/fader/TheSDK/Entities/thesdk/py')
@@ -22,7 +30,7 @@ from thesdk import *
 class f2_signal_gen(thesdk):
 
     def __init__(self,*arg): 
-        self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ];  #Properties that can be propagated from parent
+        self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ]; #Properties that can be propagated from parent
         self.Rs = 80e6                          #Sample frequency
         self.Txantennas=4                       #Number of transmitting antennas
         self.Txpower=30                         #Output power per antenna in dBm
@@ -34,7 +42,7 @@ class f2_signal_gen(thesdk):
         self.model='py';                        #can be set externally, but is not propagated
         self._filterlist=[]                     #list of interpolation filters
         self._Z = refptr();
-        self._classfile=__file__ #needed only if rtl defined as superclass
+        self._classfile=__file__                #needed only if rtl defined as superclass
 
         if len(arg)>=1:
             parent=arg[0]
@@ -101,7 +109,6 @@ class f2_signal_gen(thesdk):
                 b.shape=(1,-1)
                 chained=np.sum(np.r_['0',a,b],axis=0)
 
-            #usersig=np.ones((self.Txantennas,1))*mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols).T
             chained.shape=(1,-1)
             usersig=np.ones((self.Txantennas,1))*chained.T
             
@@ -110,8 +117,6 @@ class f2_signal_gen(thesdk):
                 out[i,:,:]=usersig
 
             self._Z.Value=out 
-
-
 
     
     def ofdm_random_qam(self):
@@ -127,20 +132,23 @@ class f2_signal_gen(thesdk):
             frames=np.floor(length/(framelen+CPlen))
             bitspersymbol=np.log2(QAM).astype(int)
             
-            #generate random bitstreams per antenna (not per user)
-            bitstream=np.random.randint(2,size=(self.Txantennas,frames*bitspersymbol*framelen))
-            #Init the qam signal, frame and out
-            qamsignal=np.zeros((self.Txantennas,frames*framelen),dtype='complex')
-            frame=np.zeros((frames,framelen),dtype='complex')
-            #usersig=np.zeros((self.Txantennas,frames*(framelen+CPlen)),dtype='complex')
+            #Generate random bitstreams per user
+            #bitstream(user,time,antenna)
+            bitstream=np.random.randint(2,size=(self.Users,int(frames*bitspersymbol*framelen)))
 
-            for i in range(self.Txantennas):
-                wordstream, qamsignal[i]= mdm.qamModulateBitStream(bitstream[i], QAM)
+            #Init the qam signal, frame and out
+            #qamsignal is different for the users, but initially identical for the TXantennas 
+            qamsignal=np.zeros((self.Users,int(frames*framelen)),dtype='complex')
+            frame=np.zeros((int(frames),int(framelen)),dtype='complex')
+
+            #for i in range(self.Txantennas):
+            for i in range(self.Users):
+                wordstream, qamsignal[i]= mdm.qamModulateBitStream(bitstream[i], QAM) #Modulated signal per user
                 qamsignal[i]=qamsignal[i].reshape((1,qamsignal.shape[1]))
-                frame= qamsignal[i].reshape((-1,framelen))
-                datasymbols=frame[:,ofdmdict['data_loc']]
-                pilotsymbols=frame[:,ofdmdict['pilot_loc']]
-                interpolated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols)
+                frame= qamsignal[i].reshape((-1,framelen)) #The OFDM frames
+                datasymbols=frame[:,ofdmdict['data_loc']]   #Set the data
+                pilotsymbols=frame[:,ofdmdict['pilot_loc']] #In this case, also pilot carry bits
+                interpolated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols) #Variable for interpolation
                 interpolated=interpolated.reshape((-1,(framelen+CPlen)))
                 interpolated=self.interpolate_at_ofdm({'signal':interpolated})
                 length=interpolated.shape[1]
@@ -148,33 +156,29 @@ class f2_signal_gen(thesdk):
                 overlap=(length-duration) #Now this is even, but necessarily. Handle later
                 win=window({'Tr':100e-9, 'length':length, 'fs':self.Rs, 'duration': duration})
                 interpolated=interpolated*win
-                chained=interpolated[0,:]
-                print(chained.shape[0])
+
+                #Initialize chaining of the symbols
+                chained=np.array(interpolated[0,:],ndmin=2)
+                #print(chained.shape)
+
+                #Loop through all symbols on rows
                 for k in range(1,interpolated.shape[0]):
                     #print(np.zeros((int(length-overlap))))
-                    a=np.r_[chained, np.zeros((int(length-overlap)))]
-                    b=np.r_[np.zeros((int(chained.shape[0]-overlap))), interpolated[k,:] ]
+                    a=np.r_['1', chained, np.zeros((1,int(length-overlap)))]
+                    b=np.r_['1',np.zeros((1,int(chained.shape[1]-overlap))), np.reshape(interpolated[k,:],(1,-1)) ]
                     a.shape=(1,-1)
                     b.shape=(1,-1)
                     chained=np.sum(np.r_['0',a,b],axis=0)
-                
+                    chained.shape=(1,-1)
+                    #OFDM symbols chained
+                #If we are handling the first user, we sill initialize the usersig
                 if i==0:
-                    #usersig=np.zeros((self.Txantennas,interpolated.shape[0]*interpolated.shape[1]),dtype='complex')
-                    usersig=np.zeros((self.Txantennas,chained.shape[0]),dtype='complex')
-                    #usersig[i,:]=interpolated.reshape(1,-1)
-                    usersig[i,:]=chained
+                    usersig=np.zeros((self.Users, chained.shape[1], self.Txantennas),dtype='complex')
+                    usersig[i,:,:]=np.transpose(np.ones((self.Txantennas,1))@chained)
                 else:
-                    usersig[i,:]=chained
-                    #usersig[i,:]=interpolated.reshape(1,-1)
+                    usersig[i,:,:]=np.transpose(np.ones((self.Txantennas,1))@chained)
                 
-            usersig=usersig.T #usersig.shape[0] is time
-            #print(usersig.shape)
-            out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
-            for i in range(self.Users):
-             #   print(usersig.shape)
-                out[i,:,:]=usersig
-
-            self._Z.Value=out 
+            self._Z.Value=usersig 
 
     def set_transmit_power(self):
          for user in range(self._Z.Value.shape[0]):
@@ -186,8 +190,8 @@ class f2_signal_gen(thesdk):
     def interpolate_at_antenna(self,argdict={'signal':[]}):
         ratio=self.Rs/self.bbsigdict['BBRs']
         signal=argdict['signal']
-        #Currently fixeed interpolation. check the fucntion definitions for details
-        factors=factor(ratio)
+        #Currently fixeed interpolation. check the function definitions for details
+        factors=factor({'n':ratio})
         filterlist=generate_interpolation_filterlist({'interp_factor':ratio})
         print("Signal length is now %i" %(signal.shape[1]))
         #This is to enable growth of the signal length that better mimics the hardware
@@ -214,7 +218,7 @@ class f2_signal_gen(thesdk):
         ratio=self.Rs/self.bbsigdict['BBRs']
         signal=argdict['signal']
         #Currently fixeed interpolation. check the fucntion definitions for details
-        factors=factor(ratio)
+        factors=factor({'n':ratio})
         filterlist=generate_interpolation_filterlist({'interp_factor':ratio})
         print("Signal length is now %i" %(signal.shape[1]))
         #This is to enable growth of the signal length that better mimics the hardware
@@ -223,8 +227,8 @@ class f2_signal_gen(thesdk):
             t=signal[symbol,:]
             for i in range(factors.shape[0]):
                 #signali=sig.resample_poly(signal[user,:,antenna], fact, 1, window=i)
-                t2=np.zeros((t.shape[0]*factors[i]),dtype='complex')
-                t2[0::factors[i]]=t
+                t2=np.zeros(int(t.shape[0]*factors[i]),dtype='complex')
+                t2[0::int(factors[i])]=t
                 t=sig.convolve(t2, filterlist[i],mode='full')
             if symbol==0:
                 signali=np.zeros((signal.shape[0],t.shape[0]),dtype='complex')
@@ -263,7 +267,7 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
 
     attenuation=70 #Desired attenuation in decibels
     numtaps=65     # TAps for the first filterThis should be somehow verified
-    factors=factor(interp_factor)
+    factors=factor({'n':interp_factor})
     print(factors)
     fsample=1
     BW=0.47
@@ -298,10 +302,10 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
 
 
 
-def factor(n):
+def factor(argdict={'n':1}):
     #This is a function to calculate factors of an integer as in Matlab
     # "Everything in Matlab is available in Python" =False.
-    reminder=n
+    reminder=argdict['n']
     factors=np.array([])
     while reminder >1:
         notfound=True
