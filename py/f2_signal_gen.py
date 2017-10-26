@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 17:14
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 26.10.2017 11:31
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -45,6 +45,7 @@ class f2_signal_gen(thesdk):
 
         if len(arg)>=1:
             parent=arg[0]
+            #self.logfile=arg[1]['logfile']
             self.copy_propval(parent,self.proplist)
             self.parent =parent;
         self.init()
