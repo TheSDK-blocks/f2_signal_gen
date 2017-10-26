@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 16:02
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 25.10.2017 17:14
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -184,9 +184,13 @@ class f2_signal_gen(thesdk):
             self._Z.Value=usersig 
 
     def set_transmit_power(self):
+         Vrms=np.sqrt(1e-3*50*10**(self.Txpower/10))
          for user in range(self._Z.Value.shape[0]):
              for antenna in range(self._Z.Value.shape[2]):
-                 self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/np.std(self._Z.Value[user,:,antenna])*np.sqrt(1e-3*50*10**(self.Txpower/10)) #Rms voltage normalized to 50 ohm
+                 Vrmscurrent=np.std(self._Z.Value[user,:,antenna])
+                 print("%s: Setting transmit Rms signal amplitude to %f Volts corresponding to %f dBm transmit power to 50 ohms" 
+                         %(self.__class__.__name__ , float(Vrms), float(self.Txpower)))
+                 self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/Vrmscurrent*Vrms
                  #print(np.std(self._Z.Value[user,:,antenna]))
 
 
@@ -196,7 +200,7 @@ class f2_signal_gen(thesdk):
         #Currently fixeed interpolation. check the function definitions for details
         factors=factor({'n':ratio})
         filterlist=generate_interpolation_filterlist({'interp_factor':ratio})
-        print("Signal length is now %i" %(signal.shape[1]))
+        print("%s: Signal length is now %i" %(self.__class__.__name__, signal.shape[1]))
         #This is to enable growth of the signal length that better mimics the hardware
         #sig.resample_poly is more effective, but does not allow growth.
         for user in range(signal.shape[0]):
@@ -270,7 +274,7 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
     
     attenuation=70 #Desired attenuation in decibels
     factors=factor({'n':interp_factor})
-    print(factors)
+    #print(factors)
     fsample=1
     BW=0.45
     numtaps=65     # TAps for the first filterThis should be somehow verified
@@ -283,7 +287,7 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
     if interp_factor >1:
         for i in factors:
             fact=i
-            print(fsample)
+            #print(fsample)
             if  fsample/(0.5)<= 8: #FIR is needed
                 print("BW to sample rate ratio is now %s" %(fsample/0.5))
                 print("Interpolation by %i" %(fact))
@@ -298,7 +302,7 @@ def generate_interpolation_filterlist(argdict={'interp_factor':1}):
                 fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
                 fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
                 filterlist.append(fircoeffs)
-                print(filterlist)
+                #print(filterlist)
                 fsample=fsample*fact #increase the sample frequency
                 print("BW to sample rate ratio is now %s" %(fsample/0.5))
                 break
