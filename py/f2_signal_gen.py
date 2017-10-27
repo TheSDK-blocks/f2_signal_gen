@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 26.10.2017 11:31
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 26.10.2017 16:39
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -35,7 +35,7 @@ class f2_signal_gen(thesdk):
         self.Txantennas=4                       #Number of transmitting antennas
         self.Txpower=30                         #Output power per antenna in dBm
         self.Users=2                            #Number of users
-        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':20e6 };  #Mode of the baseband signal. Let's start with sinusoids
+        self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':40e6 };  #Mode of the baseband signal. Let's start with sinusoids
         self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
 
         self.model='py';                        #can be set externally, but is not propagated
@@ -189,8 +189,8 @@ class f2_signal_gen(thesdk):
          for user in range(self._Z.Value.shape[0]):
              for antenna in range(self._Z.Value.shape[2]):
                  Vrmscurrent=np.std(self._Z.Value[user,:,antenna])
-                 print("%s: Setting transmit Rms signal amplitude to %f Volts corresponding to %f dBm transmit power to 50 ohms" 
-                         %(self.__class__.__name__ , float(Vrms), float(self.Txpower)))
+                 msg="Setting transmit Rms signal amplitude to %f Volts corresponding to %f dBm transmit power to 50 ohms" %(float(Vrms), float(self.Txpower))
+                 self.print_log({'type':'I', 'msg': msg}) 
                  self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/Vrmscurrent*Vrms
                  #print(np.std(self._Z.Value[user,:,antenna]))
 
@@ -200,8 +200,9 @@ class f2_signal_gen(thesdk):
         signal=argdict['signal']
         #Currently fixeed interpolation. check the function definitions for details
         factors=factor({'n':ratio})
-        filterlist=generate_interpolation_filterlist({'interp_factor':ratio})
-        print("%s: Signal length is now %i" %(self.__class__.__name__, signal.shape[1]))
+        filterlist=self.generate_interpolation_filterlist({'interp_factor':ratio})
+        msg="Signal length is now %i" %(signal.shape[1])
+        self.print_log({'type':'I', 'msg': msg}) 
         #This is to enable growth of the signal length that better mimics the hardware
         #sig.resample_poly is more effective, but does not allow growth.
         for user in range(signal.shape[0]):
@@ -210,15 +211,16 @@ class f2_signal_gen(thesdk):
                 for i in range(factors.shape[0]):
                 #signali=sig.resample_poly(signal, fact, 1, axis=1, window=fircoeffs)
                     #signali=sig.resample_poly(signal[user,:,antenna], fact, 1, window=i)
-                    t2=np.zeros((t.shape[0]*factors[i]))
-                    t2[0::factors[i]]=t
+                    t2=np.zeros((int(t.shape[0]*factors[i])),dtype='complex')
+                    t2[0::int(factors[i])]=t
                     t=sig.convolve(t2, filterlist[i],mode='full')
                 if user==0 and antenna==0:
                     signali=np.zeros((signal.shape[0],t.shape[0],signal.shape[2]),dtype='complex')
                     signali[user,:,antenna]=t
                 else:
                     signali[user,:,antenna]=t
-        print("Signal length is now %i" %(signali.shape[1]))
+        msg="Signal length is now %i" %(signali.shape[1])
+        self.print_log({'type':'I', 'msg': msg}) 
         self._filterlist=filterlist
         return signali
 
@@ -227,8 +229,9 @@ class f2_signal_gen(thesdk):
         signal=argdict['signal']
         #Currently fixeed interpolation. check the fucntion definitions for details
         factors=factor({'n':ratio})
-        filterlist=generate_interpolation_filterlist({'interp_factor':ratio})
-        print("Signal length is now %i" %(signal.shape[1]))
+        filterlist=self.generate_interpolation_filterlist({'interp_factor':ratio})
+        msg="Signal length is now %i" %(signal.shape[1])
+        self.print_log({'type':'I', 'msg': msg}) 
         #This is to enable growth of the signal length that better mimics the hardware
         #sig.resample_poly is more effective, but does not allow growth.
         for symbol in range(signal.shape[0]):
@@ -248,6 +251,52 @@ class f2_signal_gen(thesdk):
         #print(filterlist)
         return signali
 
+    def generate_interpolation_filterlist(self,argdict={'interp_factor':1}):
+        #Use argument dictionary. Makes modifications easier.
+        interp_factor=argdict['interp_factor']
+        
+        attenuation=70 #Desired attenuation in decibels
+        factors=factor({'n':interp_factor})
+        #print(factors)
+        fsample=1
+        BW=0.45
+        numtaps=65     # TAps for the first filterThis should be somehow verified
+        #Harris rule. This is to control stability of Rmez
+        #numtaps= int(np.ceil(attenuation*fsample*factors[0]/(fsample/2-BW)))    # TAps for the first filterThis should be somehow verified
+        desired=np.array([ 1, 10**(-attenuation/10)] )
+        #check the mask specs from standard 
+        #mask=np.array([ 1, 10**(-28/10)    ] )
+        filterlist=list()
+        if interp_factor >1:
+            for i in factors:
+                fact=i
+                #print(fsample)
+                if  fsample/(0.5)<= 8: #FIR is needed
+                    msg= "BW to sample rate ratio is now %s" %(fsample/0.5)
+                    self.print_log({'type': 'I', 'msg':msg })
+                    msg="Interpolation by %i" %(fact)
+                    self.print_log({'type': 'I', 'msg':msg })
+                    bands=np.array([0, BW, (fsample*fact/2-BW), fact*fsample/2])
+                    filterlist.append(sig.remez(numtaps, bands, desired, Hz=fact*fsample))
+                    fsample=fsample*fact #increase the sample frequency
+                    numtaps=np.amax([3, int(np.floor(numtaps/fact)) + int((np.floor(numtaps/fact)%2-1))]) 
+                else:
+                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    fact=fnc.reduce(lambda x,y:x*y,factors)/fsample
+                    print("Interpolation with 3-stage CIC-filter by %i" %(fact))
+                    fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
+                    fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
+                    filterlist.append(fircoeffs)
+                    #print(filterlist)
+                    fsample=fsample*fact #increase the sample frequency
+                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    break
+        else:
+            print("Interpolation ratio is 1. Generated unit coefficient")
+            filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
+        return filterlist
+
+#Funtion definitions
 #Window to taper OFDM symbols
 def window(argdict={'Tr':100e-9, 'length':478, 'fs':80e6, 'duration':240 }):
     #Tr is the window rise/fall time 100ns is from the specification
@@ -267,52 +316,6 @@ def window(argdict={'Tr':100e-9, 'length':478, 'fs':80e6, 'duration':240 }):
      elif t[i]>= T-Tr/2 and t[i] <= T+Tr/2:
          window[i]=np.sin(np.pi/2*(0.5-(t[i]-T)/Tr))**2
     return window
-
-#Funtion definitions
-def generate_interpolation_filterlist(argdict={'interp_factor':1}):
-    #Use argument dictionary. Makes modifications easier.
-    interp_factor=argdict['interp_factor']
-    
-    attenuation=70 #Desired attenuation in decibels
-    factors=factor({'n':interp_factor})
-    #print(factors)
-    fsample=1
-    BW=0.45
-    numtaps=65     # TAps for the first filterThis should be somehow verified
-    #Harris rule. This is to control stability of Rmez
-    #numtaps= int(np.ceil(attenuation*fsample*factors[0]/(fsample/2-BW)))    # TAps for the first filterThis should be somehow verified
-    desired=np.array([ 1, 10**(-attenuation/10)] )
-    #check the mask specs from standard 
-    #mask=np.array([ 1, 10**(-28/10)    ] )
-    filterlist=list()
-    if interp_factor >1:
-        for i in factors:
-            fact=i
-            #print(fsample)
-            if  fsample/(0.5)<= 8: #FIR is needed
-                print("BW to sample rate ratio is now %s" %(fsample/0.5))
-                print("Interpolation by %i" %(fact))
-                bands=np.array([0, BW, (fsample*fact/2-BW), fact*fsample/2])
-                filterlist.append(sig.remez(numtaps, bands, desired, Hz=fact*fsample))
-                fsample=fsample*fact #increase the sample frequency
-                numtaps=np.amax([3, int(np.floor(numtaps/fact)) + int((np.floor(numtaps/fact)%2-1))]) 
-            else:
-                print("BW to sample rate ratio is now %s" %(fsample/0.5))
-                fact=fnc.reduce(lambda x,y:x*y,factors)/fsample
-                print("Interpolation with 3-stage CIC-filter by %i" %(fact))
-                fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
-                fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
-                filterlist.append(fircoeffs)
-                #print(filterlist)
-                fsample=fsample*fact #increase the sample frequency
-                print("BW to sample rate ratio is now %s" %(fsample/0.5))
-                break
-    else:
-        print("Interpolation ratio is 1. Generated unit coefficient")
-        filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
-    return filterlist
-
-
 
 def factor(argdict={'n':1}):
     #This is a function to calculate factors of an integer as in Matlab
