@@ -28,7 +28,9 @@ from thesdk import *
 
 #Simple buffer template
 class f2_signal_gen(thesdk):
-
+    PLPCsyn_short=np.sqrt(16/6)*np.r_[0,0,1+1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,−1−1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,0,0,0,0,−1−1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,1+1j,0,0,0,1+1j,0,0]
+    PLPCsyn_long=np.r_[1,1,−1,−1,1,1,−1,1,−1,1,1,1,1,1,1,−1,−1,1,1,−1,1,−1,1,1,1,1,1,0,1,−1,−1,1,1,−1,1,−1,1,−1,−1,−1,−1,−1,1,1,−1,−1,1,−1,1,−1,1,1,1,1]
+    
     def __init__(self,*arg): 
         self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ]; #Properties that can be propagated from parent
         self.Rs = 80e6                          #Sample frequency
@@ -294,6 +296,37 @@ class f2_signal_gen(thesdk):
             print("Interpolation ratio is 1. Generated unit coefficient")
             filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
         return filterlist
+
+    def generate_802_11n_plpc(self)
+        ofdmdict=self.ofdmdict
+        framelen=ofdmdict['framelen']
+        CPlen=ofdmdict['CPlen']
+        QAMshort=4
+        QAMlong=2
+        BBRs=bbsigdict['BBRs']
+        #The length is approx this many frames
+        
+        #Generate random bitstreams per user
+        #bitstream(user,time,antenna)
+                 sequence_short=[] 
+                 for in in range(10)
+        symbol_short=np.r[np.zeros((1,6)), PLPCsyn_short, np.zeros((1,6)))] #These are already 4-QAM modulated
+        seq_short=np.ones((10,1))@symbol_short #10 short symbols
+
+        symbol_long=np.r[np.zeros((1,6)), PLPCsyn_long, np.zeros((1,6)))]   #These are 2-QAM modulated
+        seq_long=np.ones((2,1))@symbol_long                                 #2 long symbols
+        
+        #Of course windowing consists anomalies.Performed after IFFT anyway
+        symbols=np.r('0',seq_short,seq_long)
+        datasymbols=symbols[:,ofdmdict['data_loc']]   #Set the data
+        pilotsymbols=symbols[:,ofdmdict['pilot_loc']] #Set the pilots
+        modulated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols) #Variable for interpolation
+
+
+        #Init the qam signal, frame and out
+        #qamsignal is different for the users, but initially identical for the TXantennas 
+        frame=np.zeros((int(frames),int(framelen)),dtype='complex')
+    
 
 #Funtion definitions
 #Window to taper OFDM symbols
