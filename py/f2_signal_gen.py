@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 11:16
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 11:17
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -297,35 +297,35 @@ class f2_signal_gen(thesdk):
             filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
         return filterlist
 
-    def generate_802_11n_plpc(self):
-        ofdmdict=self.ofdmdict
-        framelen=ofdmdict['framelen']
-        CPlen=ofdmdict['CPlen']
-        QAMshort=4
-        QAMlong=2
-        BBRs=bbsigdict['BBRs']
-        #The length is approx this many frames
-        
-        #Generate random bitstreams per user
-        #bitstream(user,time,antenna)
-        #sequence_short=[] 
-        #for in in range(10)
-        symbol_short=np.r[np.zeros((1,6)), PLPCsyn_short, np.zeros((1,6)))] #These are already 4-QAM modulated
-        seq_short=np.ones((10,1))@symbol_short #10 short symbols
+    #def generate_802_11n_plpc(self):
+    #    ofdmdict=self.ofdmdict
+    #    framelen=ofdmdict['framelen']
+    #    CPlen=ofdmdict['CPlen']
+    #    QAMshort=4
+    #    QAMlong=2
+    #    BBRs=bbsigdict['BBRs']
+    #    #The length is approx this many frames
+    #    
+    #    #Generate random bitstreams per user
+    #    #bitstream(user,time,antenna)
+    #    #sequence_short=[] 
+    #    #for in in range(10)
+    #    symbol_short=np.r[np.zeros((1,6)), PLPCsyn_short, np.zeros((1,6)))] #These are already 4-QAM modulated
+    #    seq_short=np.ones((10,1))@symbol_short #10 short symbols
 
-        symbol_long=np.r[np.zeros((1,6)), PLPCsyn_long, np.zeros((1,6)))]   #These are 2-QAM modulated
-        seq_long=np.ones((2,1))@symbol_long                                 #2 long symbols
-        
-        #Of course windowing consists anomalies.Performed after IFFT anyway
-        symbols=np.r('0',seq_short,seq_long)
-        datasymbols=symbols[:,ofdmdict['data_loc']]   #Set the data
-        pilotsymbols=symbols[:,ofdmdict['pilot_loc']] #Set the pilots
-        modulated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols) #Variable for interpolation
+    #    symbol_long=np.r[np.zeros((1,6)), PLPCsyn_long, np.zeros((1,6)))]   #These are 2-QAM modulated
+    #    seq_long=np.ones((2,1))@symbol_long                                 #2 long symbols
+    #    
+    #    #Of course windowing consists anomalies.Performed after IFFT anyway
+    #    symbols=np.r('0',seq_short,seq_long)
+    #    datasymbols=symbols[:,ofdmdict['data_loc']]   #Set the data
+    #    pilotsymbols=symbols[:,ofdmdict['pilot_loc']] #Set the pilots
+    #    modulated=mdm.ofdmMod(ofdmdict,datasymbols,pilotsymbols) #Variable for interpolation
 
 
-        #Init the qam signal, frame and out
-        #qamsignal is different for the users, but initially identical for the TXantennas 
-        frame=np.zeros((int(frames),int(framelen)),dtype='complex')
+    #    #Init the qam signal, frame and out
+    #    #qamsignal is different for the users, but initially identical for the TXantennas 
+    #    frame=np.zeros((int(frames),int(framelen)),dtype='complex')
     
 
 #Funtion definitions
