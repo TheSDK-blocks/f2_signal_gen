@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 26.10.2017 16:39
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 30.10.2017 18:13
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -42,7 +42,6 @@ class f2_signal_gen(thesdk):
         self._filterlist=[]                     #list of interpolation filters
         self._Z = refptr();
         self._classfile=__file__                #needed only if rtl defined as superclass
-
         if len(arg)>=1:
             parent=arg[0]
             #self.logfile=arg[1]['logfile']
@@ -157,7 +156,7 @@ class f2_signal_gen(thesdk):
                 interpolated=self.interpolate_at_ofdm({'signal':interpolated})
                 length=interpolated.shape[1]
                 duration=(framelen+CPlen)*self.Rs/BBRs
-                overlap=(length-duration) #Now this is even, but necessarily. Handle later
+                overlap=(length-duration) #Now this is even, but not necessarily. Handle later
                 win=window({'Tr':100e-9, 'length':length, 'fs':self.Rs, 'duration': duration})
                 interpolated=interpolated*win
 
