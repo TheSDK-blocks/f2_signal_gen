@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 30.10.2017 18:13
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 11:14
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -28,8 +28,8 @@ from thesdk import *
 
 #Simple buffer template
 class f2_signal_gen(thesdk):
-    PLPCsyn_short=np.sqrt(16/6)*np.r_[0,0,1+1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,−1−1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,0,0,0,0,−1−1j,0,0,0,−1−1j,0,0,0,1+1j,0,0,0,1+1j,0,0,0,1+1j,0,0]
-    PLPCsyn_long=np.r_[1,1,−1,−1,1,1,−1,1,−1,1,1,1,1,1,1,−1,−1,1,1,−1,1,−1,1,1,1,1,1,0,1,−1,−1,1,1,−1,1,−1,1,−1,−1,−1,−1,−1,1,1,−1,−1,1,−1,1,−1,1,1,1,1]
+    PLPCsyn_short=np.sqrt(16/6)*np.r_[0,0,1+1j,0,0,0,-1-1j,0,0,0,1+1j,0,0,0,-1-1j,0,0,0,-1-1j,0,0,0,1+1j,0,0,0,0,0,0,0,-1-1j,0,0,0,-1-1j,0,0,0,1+1j,0,0,0,1+1j,0,0,0,1+1j,0,0]
+    PLPCsyn_long=np.r_[1,1,-1,-1,1,1,-1,1,-1,1,1,1,1,1,1,-1,-1,1,1,-1,1,-1,1,1,1,1,1,0,1,-1,-1,1,1,-1,1,-1,1,-1,-1,-1,-1,-1,1,1,-1,-1,1,-1,1,-1,1,1,1,1]
     
     def __init__(self,*arg): 
         self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ]; #Properties that can be propagated from parent
@@ -297,7 +297,7 @@ class f2_signal_gen(thesdk):
             filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
         return filterlist
 
-    def generate_802_11n_plpc(self)
+    def generate_802_11n_plpc(self):
         ofdmdict=self.ofdmdict
         framelen=ofdmdict['framelen']
         CPlen=ofdmdict['CPlen']
