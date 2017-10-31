@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 11:14
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 11:16
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -308,8 +308,8 @@ class f2_signal_gen(thesdk):
         
         #Generate random bitstreams per user
         #bitstream(user,time,antenna)
-                 sequence_short=[] 
-                 for in in range(10)
+        #sequence_short=[] 
+        #for in in range(10)
         symbol_short=np.r[np.zeros((1,6)), PLPCsyn_short, np.zeros((1,6)))] #These are already 4-QAM modulated
         seq_short=np.ones((10,1))@symbol_short #10 short symbols
 
