@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 31.10.2017 13:05
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 02.11.2017 23:32
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -127,6 +127,50 @@ class f2_signal_gen(thesdk):
         self._filterlist=filterlist
         return signali
 
+    def generate_interpolation_filterlist(self,argdict={'interp_factor':1}):
+        #Use argument dictionary. Makes modifications easier.
+        interp_factor=argdict['interp_factor']
+        
+        attenuation=70 #Desired attenuation in decibels
+        factors=factor({'n':interp_factor})
+        #print(factors)
+        fsample=1
+        BW=0.45
+        numtaps=65     # TAps for the first filterThis should be somehow verified
+        #Harris rule. This is to control stability of Rmez
+        #numtaps= int(np.ceil(attenuation*fsample*factors[0]/(fsample/2-BW)))    # TAps for the first filterThis should be somehow verified
+        desired=np.array([ 1, 10**(-attenuation/10)] )
+        #check the mask specs from standard 
+        #mask=np.array([ 1, 10**(-28/10)    ] )
+        filterlist=list()
+        if interp_factor >1:
+            for i in factors:
+                fact=i
+                #print(fsample)
+                if  fsample/(0.5)<= 8: #FIR is needed
+                    msg= "BW to sample rate ratio is now %s" %(fsample/0.5)
+                    self.print_log({'type': 'I', 'msg':msg })
+                    msg="Interpolation by %i" %(fact)
+                    self.print_log({'type': 'I', 'msg':msg })
+                    bands=np.array([0, BW, (fsample*fact/2-BW), fact*fsample/2])
+                    filterlist.append(sig.remez(numtaps, bands, desired, Hz=fact*fsample))
+                    fsample=fsample*fact #increase the sample frequency
+                    numtaps=np.amax([3, int(np.floor(numtaps/fact)) + int((np.floor(numtaps/fact)%2-1))]) 
+                else:
+                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    fact=fnc.reduce(lambda x,y:x*y,factors)/fsample
+                    print("Interpolation with 3-stage CIC-filter by %i" %(fact))
+                    fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
+                    fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
+                    filterlist.append(fircoeffs)
+                    #print(filterlist)
+                    fsample=fsample*fact #increase the sample frequency
+                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    break
+        else:
+            print("Interpolation ratio is 1. Generated unit coefficient")
+            filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
+        return filterlist
     
 
 #Funtion definitions
