@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 02.11.2017 23:32
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.11.2017 18:04
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -59,6 +59,8 @@ class f2_signal_gen(thesdk):
             self.ofdm_sinusoid()
         if self.bbsigdict['mode']=='ofdm_random_qam':
             self.ofdm_random_qam()
+        if self.bbsigdict['mode']=='ofdm_random_802_11n':
+            self.ofdm_random_802_11n()
 
     def run(self): #Just an alias for init to be consistent: run() always executes the core function
         self.init()
@@ -83,6 +85,11 @@ class f2_signal_gen(thesdk):
          self._Z=self.sg802_11n._Z
 
     
+    def ofdm_random_802_11n(self):
+         out=self.sg802_11n.gen_random_802_11n_ofdm()
+         out=self.interpolate_at_antenna({'signal':out})
+         self._Z.Value=out
+
     def ofdm_random_qam(self):
          self.sg802_11n.ofdm_random_qam()
          self._Z=self.sg802_11n._Z
@@ -103,6 +110,8 @@ class f2_signal_gen(thesdk):
         signal=argdict['signal']
         #Currently fixeed interpolation. check the function definitions for details
         factors=factor({'n':ratio})
+        msg="Interpolation factors at antenna are %s" %(factors)
+        self.print_log({'type':'I', 'msg': msg}) 
         filterlist=self.generate_interpolation_filterlist({'interp_factor':ratio})
         msg="Signal length is now %i" %(signal.shape[1])
         self.print_log({'type':'I', 'msg': msg}) 
