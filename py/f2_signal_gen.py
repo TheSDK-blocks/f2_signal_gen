@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 15.11.2017 22:23
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 16.11.2017 13:15
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -92,9 +92,20 @@ class f2_signal_gen(thesdk):
     def ofdm_random_802_11n(self):
          out=self.sg802_11n.gen_random_802_11n_ofdm()
          out=self.interpolate_at_antenna({'signal':out})
+         print(out.shape)
          print("perese")
+         test=out[0,320+16:320+80,0]
+         test.shape=(-1,1)
+         print(test.shape)
+         test=np.fft.fft(test,axis=0)/64
+         print(test[Freqmap])
          self._Z.Value=out
-         print(self._Z.Value[0,160+32:180+32,0])
+         #print(self._Z.Value[0,320+16:320+80,0])
+         test=self._Z.Value[0,320+16:320+80,0]
+         test.shape=(-1,1)
+         print(test.shape)
+         test=np.fft.fft(test,axis=0)/64
+         print(test[Freqmap])
 
     def ofdm_random_qam(self):
          self.sg802_11n.ofdm_random_qam()
