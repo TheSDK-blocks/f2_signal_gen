@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.11.2017 18:04
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 15.11.2017 22:23
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -40,6 +40,7 @@ class f2_signal_gen(thesdk):
 
         self.model='py';                        #can be set externally, but is not propagated
         self._filterlist=[]                     #list of interpolation filters
+        self._qam_reference=[]
         self._Z = refptr();
         self._classfile=__file__                #needed only if rtl defined as superclass
         if len(arg)>=1:
@@ -57,10 +58,13 @@ class f2_signal_gen(thesdk):
             self.sinusoid()
         if self.bbsigdict['mode']=='ofdm_sinusoid':
             self.ofdm_sinusoid()
+            self._qam_reference=self.sg802_11n._qam_reference
         if self.bbsigdict['mode']=='ofdm_random_qam':
             self.ofdm_random_qam()
+            self._qam_reference=self.sg802_11n._qam_reference
         if self.bbsigdict['mode']=='ofdm_random_802_11n':
             self.ofdm_random_802_11n()
+            self._qam_reference=self.sg802_11n._qam_reference
 
     def run(self): #Just an alias for init to be consistent: run() always executes the core function
         self.init()
@@ -88,7 +92,9 @@ class f2_signal_gen(thesdk):
     def ofdm_random_802_11n(self):
          out=self.sg802_11n.gen_random_802_11n_ofdm()
          out=self.interpolate_at_antenna({'signal':out})
+         print("perese")
          self._Z.Value=out
+         print(self._Z.Value[0,160+32:180+32,0])
 
     def ofdm_random_qam(self):
          self.sg802_11n.ofdm_random_qam()
