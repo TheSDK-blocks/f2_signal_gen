@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 16.11.2017 13:15
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 17.11.2017 14:17
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -43,6 +43,7 @@ class f2_signal_gen(thesdk):
         self._qam_reference=[]
         self._Z = refptr();
         self._classfile=__file__                #needed only if rtl defined as superclass
+        self.DEBUG= False
         if len(arg)>=1:
             parent=arg[0]
             #self.logfile=arg[1]['logfile']
@@ -92,20 +93,20 @@ class f2_signal_gen(thesdk):
     def ofdm_random_802_11n(self):
          out=self.sg802_11n.gen_random_802_11n_ofdm()
          out=self.interpolate_at_antenna({'signal':out})
-         print(out.shape)
-         print("perese")
+         self.print_log({'type':'D', 'msg':out.shape})
+         self.print_log({'type':'D', 'msg':"Test"})
          test=out[0,320+16:320+80,0]
          test.shape=(-1,1)
-         print(test.shape)
+         self.print_log({'type':'D', 'msg':test.shape})
          test=np.fft.fft(test,axis=0)/64
-         print(test[Freqmap])
+         self.print_log({'type':'D', 'msg':test[Freqmap]})
          self._Z.Value=out
-         #print(self._Z.Value[0,320+16:320+80,0])
+         #self.print_log({'type':'D', 'msg':self._Z.Value[0,320+16:320+80,0]})
          test=self._Z.Value[0,320+16:320+80,0]
          test.shape=(-1,1)
-         print(test.shape)
+         self.print_log({'type':'D', 'msg':test.shape})
          test=np.fft.fft(test,axis=0)/64
-         print(test[Freqmap])
+         self.print_log({'type':'D', 'msg':test[Freqmap]})
 
     def ofdm_random_qam(self):
          self.sg802_11n.ofdm_random_qam()
@@ -119,7 +120,7 @@ class f2_signal_gen(thesdk):
                  msg="Setting transmit Rms signal amplitude to %f Volts corresponding to %f dBm transmit power to 50 ohms" %(float(Vrms), float(self.Txpower))
                  self.print_log({'type':'I', 'msg': msg}) 
                  self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/Vrmscurrent*Vrms
-                 #print(np.std(self._Z.Value[user,:,antenna]))
+                 #self.print_log({'type':'D', 'msg':np.std(self._Z.Value[user,:,antenna])})
 
 
     def interpolate_at_antenna(self,argdict={'signal':[]}):
@@ -159,7 +160,7 @@ class f2_signal_gen(thesdk):
         
         attenuation=70 #Desired attenuation in decibels
         factors=factor({'n':interp_factor})
-        #print(factors)
+        #self.print_log({'type':'D', 'msg':factors})
         fsample=1
         BW=0.45
         numtaps=65     # TAps for the first filterThis should be somehow verified
@@ -172,7 +173,7 @@ class f2_signal_gen(thesdk):
         if interp_factor >1:
             for i in factors:
                 fact=i
-                #print(fsample)
+                #self.print_log({'type':'D', 'msg':fsample})
                 if  fsample/(0.5)<= 8: #FIR is needed
                     msg= "BW to sample rate ratio is now %s" %(fsample/0.5)
                     self.print_log({'type': 'I', 'msg':msg })
@@ -183,18 +184,18 @@ class f2_signal_gen(thesdk):
                     fsample=fsample*fact #increase the sample frequency
                     numtaps=np.amax([3, int(np.floor(numtaps/fact)) + int((np.floor(numtaps/fact)%2-1))]) 
                 else:
-                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    self.print_log({'type':'I', 'msg':"BW to sample rate ratio is now %s" %(fsample/0.5)})
                     fact=fnc.reduce(lambda x,y:x*y,factors)/fsample
-                    print("Interpolation with 3-stage CIC-filter by %i" %(fact))
+                    self.print_log({'type':'I', 'msg':"Interpolation with 3-stage CIC-filter by %i" %(fact)})
                     fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
                     fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
                     filterlist.append(fircoeffs)
-                    #print(filterlist)
+                    #self.print_log({'type':'D', 'msg':filterlist})
                     fsample=fsample*fact #increase the sample frequency
-                    print("BW to sample rate ratio is now %s" %(fsample/0.5))
+                    self.print_log({'type':'I', 'msg':"BW to sample rate ratio is now %s" %(fsample/0.5)})
                     break
         else:
-            print("Interpolation ratio is 1. Generated unit coefficient")
+            self.print_log({'type':'I', 'msg':"Interpolation ratio is 1. Generated unit coefficient"})
             filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
         return filterlist
     
@@ -231,17 +232,17 @@ if __name__=="__main__":
     t.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs': 20e6 }; #Mode of the baseband signal. Let's start with sinusoids
     t.init()
     t.set_transmit_power()
-    print(np.std(t._Z.Value,axis=1))
-    #print(t._Z.Value)
-    #print(t._Z.Value.shape)
+    self.print_log({'type':'D', 'msg':np.std(t._Z.Value,axis=1)})
+    #self.print_log({'type':'D', 'msg':t._Z.Value})
+    #self.print_log({'type':'D', 'msg':t._Z.Value.shape})
     #n=t._Z.Value/np.std(t._Z.Value,axis=1)
-    print(t._Z.Value)
-    #print(filt)
-    #print(filt.shape)
+    self.print_log({'type':'D', 'msg':t._Z.Value})
+    #self.print_log({'type':'D', 'msg':filt})
+    #self.print_log({'type':'D', 'msg':filt.shape})
     #tf=factor(8)
-    #print(tf)
+    #self.print_log({'type':'D', 'msg':tf})
     #tf=factor(80)
-    #print(tf)
+    #self.print_log({'type':'D', 'msg':tf})
     filt=t._filterlist
     for i in filt:
         w, h = sig.freqz(i)
