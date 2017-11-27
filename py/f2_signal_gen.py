@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 20.11.2017 17:22
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 27.11.2017 14:53
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -116,15 +116,19 @@ class f2_signal_gen(thesdk):
          self._Z=self.sg802_11n._Z
 
     def set_transmit_power(self):
+         t=[]
+         for user in range(self._Z.Value.shape[0]):
+             for antenna in range(self._Z.Value.shape[2]):
+                 if self.sg802_11n.Disableuser[user]:
+                     t=np.r_['0',t, self._Z.Value[user,:,antenna]]
+         Vrmscurrent=np.std(t)
+
          Vrms=np.sqrt(1e-3*50*10**(self.Txpower/10))
          for user in range(self._Z.Value.shape[0]):
              for antenna in range(self._Z.Value.shape[2]):
-                 Vrmscurrent=np.std(self._Z.Value[user,:,antenna])
-                 msg="Setting transmit Rms signal amplitude to %f Volts corresponding to %f dBm transmit power to 50 ohms" %(float(Vrms), float(self.Txpower))
+                 msg="Setting transmit Rms signal amplitude to from %f to %f Volts corresponding to %f dBm transmit power to 50 ohms" %(float(Vrmscurrent), float(Vrms), float(self.Txpower))
                  self.print_log({'type':'I', 'msg': msg}) 
                  self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/Vrmscurrent*Vrms
-                 #self.print_log({'type':'D', 'msg':np.std(self._Z.Value[user,:,antenna])})
-
 
     def interpolate_at_antenna(self,argdict={'signal':[]}):
         ratio=self.Rs/self.bbsigdict['BBRs']
