@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 27.11.2017 14:53
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 28.11.2017 12:20
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -119,7 +119,7 @@ class f2_signal_gen(thesdk):
          t=[]
          for user in range(self._Z.Value.shape[0]):
              for antenna in range(self._Z.Value.shape[2]):
-                 if self.sg802_11n.Disableuser[user]:
+                 if not self.sg802_11n.Disableuser[user]:
                      t=np.r_['0',t, self._Z.Value[user,:,antenna]]
          Vrmscurrent=np.std(t)
 
