@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 28.11.2017 12:20
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 29.11.2017 10:07
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -30,11 +30,13 @@ from signal_generator_802_11n import *
 #Simple buffer template
 class f2_signal_gen(thesdk):
     def __init__(self,*arg): 
-        self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict' ]; #Properties that can be propagated from parent
+        self.proplist = [ 'Txantennas', 'Txpower', 'Users', 'Rs', 'bbsigdict', 'ofdmdict', 'Disableuser' ]; #Properties that can be propagated from parent
         self.Rs = 80e6                          #Sample frequency
         self.Txantennas=4                       #Number of transmitting antennas
         self.Txpower=30                         #Output power per antenna in dBm
         self.Users=2                            #Number of users
+        self.Disableuser=[]
+        self.Disableuser= [ self.Disableuser.append(False) for i in range(self.Users) ]         #Disable data transmission for cerrtain users
         self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':40e6 };  #Mode of the baseband signal. Let's start with sinusoids
         self.ofdmdict={ 'framelen':64,'data_loc': np.r_[1:11+1, 13:25+1, 27:39+1, 41:53+1, 55:64+1]-1, 'pilot_loc' : np.r_[-21, -7, 7, 21] + 32, 'CPlen':16}
 
