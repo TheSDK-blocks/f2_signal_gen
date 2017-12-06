@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 29.11.2017 10:07
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.12.2017 13:58
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -42,14 +42,13 @@ class f2_signal_gen(thesdk):
 
         self.model='py';                        #can be set externally, but is not propagated
         self._filterlist=[]                     #list of interpolation filters
-        self._qam_reference=[]
-        self._bitstream_reference=[]
+        self._qam_reference=[]                  #Reference symbols stream for EVM
+        self._bitstream_reference=[]            #Reference bit stream for BER 
         self._Z = refptr();
         self._classfile=__file__                #needed only if rtl defined as superclass
         self.DEBUG= False
         if len(arg)>=1:
             parent=arg[0]
-            #self.logfile=arg[1]['logfile']
             self.copy_propval(parent,self.proplist)
             self.parent =parent;
         self.init()
@@ -72,7 +71,7 @@ class f2_signal_gen(thesdk):
             self._qam_reference=self.sg802_11n._qam_reference
             self._bitstream_reference=self.sg802_11n._bitstream_reference
 
-    def run(self): #Just an alias for init to be consistent: run() always executes the core function
+    def run(self): #Just an alias for init to be consistent: run() executes the core function
         self.init()
 
 
