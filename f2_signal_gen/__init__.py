@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 05.12.2017 13:58
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 18.12.2017 15:54
  
 import sys
 sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
@@ -79,7 +79,7 @@ class f2_signal_gen(thesdk):
     #controlled with bbsigdict
     def sinusoid(self):
             length=self.bbsigdict['length']
-            phi=np.transpose(np.array(np.mat(self.bbsigdict['freqs'])))*np.array(range(length))*2*2*np.pi/(self.Rs)
+            phi=np.transpose(np.array(np.mat(self.bbsigdict['freqs'])))*np.array(range(length))*2*np.pi/(self.bbsigdict['BBRs'])
             usersig=np.transpose(np.ones((self.Txantennas,1))*np.sum(np.exp(1j*phi),0)/len(self.bbsigdict['freqs'])) #All antennas emit the same signal
             #All users have the same signal
             out=np.zeros((self.Users,usersig.shape[0],usersig.shape[1]),dtype='complex')
