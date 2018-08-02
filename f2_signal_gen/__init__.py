@@ -6,12 +6,8 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 18.12.2017 15:54
- 
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 01.08.2018 15:39
 import sys
-sys.path.append ('/home/projects/fader/TheSDK/Entities/refptr/py')
-sys.path.append ('/home/projects/fader/TheSDK/Entities/thesdk/py')
-sys.path.append ('/home/projects/fader/TheSDK/Entities/modem/py')
 import numpy as np
 import scipy.signal as sig
 import tempfile
@@ -19,13 +15,10 @@ import subprocess
 import shlex
 import time
 import functools as fnc
-import modem as mdm #Function definitions
-
-#Classes are distinguished by the class
-from refptr import *
 from thesdk import *
+from refptr import *
+import modem as mdm #Function definitions
 from signal_generator_802_11n import *
-#from rtl import *
 
 #Simple buffer template
 class f2_signal_gen(thesdk):
@@ -35,6 +28,9 @@ class f2_signal_gen(thesdk):
         self.Txantennas=4                       #Number of transmitting antennas
         self.Txpower=30                         #Output power per antenna in dBm
         self.Users=2                            #Number of users
+        self.Digital='False'                    #If true, the ouput is quantized to Bits
+        self.Bits=10
+        self.Digital_mode='2C'                  #Two's complement
         self.Disableuser=[]
         self.Disableuser= [ self.Disableuser.append(False) for i in range(self.Users) ]         #Disable data transmission for cerrtain users
         self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':40e6 };  #Mode of the baseband signal. Let's start with sinusoids
@@ -70,10 +66,17 @@ class f2_signal_gen(thesdk):
             self.ofdm_random_802_11n()
             self._qam_reference=self.sg802_11n._qam_reference
             self._bitstream_reference=self.sg802_11n._bitstream_reference
+        
+        if self.Digital=='True':
+            digitize_argdict={'signal':self._Z.Value, 'Bits':self.Bits, 
+                    'Scale':self.Txpower, 'mode':self.Digital_mode }
+            if digitize_argdict['Scale']>0:
+                self.print_log({'type':'I', 'msg':"Digitizer scale > 0dB. Defaulting to 0 dB"})
+                digitize_argdict['Scale']=0
+            self._Z.Value=digitize(**digitize_argdict)
 
     def run(self): #Just an alias for init to be consistent: run() executes the core function
         self.init()
-
 
     #Methods for signal generation. Add a function and add it to init()
     #controlled with bbsigdict
@@ -209,6 +212,21 @@ class f2_signal_gen(thesdk):
     
 
 #Funtion definitions
+def digitize(**kwargs):
+    signal=kwargs.get('signal')
+    bits=kwargs.get('Bits',10)
+    #Scale factor in decibels. By default, signal is scaled to cover the full dynamic range
+    #0 means full scale.
+    scale=10**(kwargs.get('Scale',0)/20)
+    mode=kwargs.get('Mode','2C') #2C =Two's complement, BO is binary offset
+    max=np.amax(np.abs(np.r_['1', np.real(signal), np.imag(signal)]))
+    #Default is two's complement, i.e. negative numbers remain negative
+    digitized=np.round(signal/max*scale*(2**(bits-1)-1))
+    if mode=='BO':
+       #Not rescaled in order to retain symmetry relatively to the midpoint
+       digitized=digitized+2**(bits-1)-1
+    return digitized
+        
 
 def factor(argdict={'n':1}):
     #This is a function to calculate factors of an integer as in Matlab
@@ -230,21 +248,27 @@ def factor(argdict={'n':1}):
 
 
 if __name__=="__main__":
-
     import scipy as sci
     import numpy as np
     import matplotlib.pyplot as plt
+    from thesdk import *
     from  f2_signal_gen import *
     t=f2_signal_gen()
     t.Rs=8*11*20e6
     t.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs': 20e6 }; #Mode of the baseband signal. Let's start with sinusoids
+    t.Txantennas=4                       #Number of transmitting antennas
+    t.Txpower=0                          #Output power per antenna in dBm
+    t.Users=1                            #Number of users
+    t.Digital='True'
+    t.DEBUG='True'
     t.init()
-    t.set_transmit_power()
-    self.print_log({'type':'D', 'msg':np.std(t._Z.Value,axis=1)})
+    #t.set_transmit_power()
+    #self.print_log({'type':'D', 'msg':np.std(t._Z.Value,axis=1)})
     #self.print_log({'type':'D', 'msg':t._Z.Value})
     #self.print_log({'type':'D', 'msg':t._Z.Value.shape})
     #n=t._Z.Value/np.std(t._Z.Value,axis=1)
-    self.print_log({'type':'D', 'msg':t._Z.Value})
+    t.print_log({'type':'D', 'msg':np.max(t._Z.Value)})
+    t.print_log({'type':'D', 'msg':t._Z.Value.shape})
     #self.print_log({'type':'D', 'msg':filt})
     #self.print_log({'type':'D', 'msg':filt.shape})
     #tf=factor(8)
@@ -257,4 +281,4 @@ if __name__=="__main__":
         plt.plot(w/(2*np.pi), 20*np.log10(abs(h)))
     plt.show()
 
-
+    
