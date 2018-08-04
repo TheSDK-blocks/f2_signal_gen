@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 01.08.2018 15:39
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 03.08.2018 16:33
 import sys
 import numpy as np
 import scipy.signal as sig
@@ -256,9 +256,9 @@ if __name__=="__main__":
     t=f2_signal_gen()
     t.Rs=8*11*20e6
     t.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs': 20e6 }; #Mode of the baseband signal. Let's start with sinusoids
-    t.Txantennas=4                       #Number of transmitting antennas
+    t.Txantennas=1                       #Number of transmitting antennas
     t.Txpower=0                          #Output power per antenna in dBm
-    t.Users=1                            #Number of users
+    t.Users=4                            #Number of users
     t.Digital='True'
     t.DEBUG='True'
     t.init()
