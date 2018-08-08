@@ -6,7 +6,7 @@
 #   Every transmitter has the same number of antennas
 #   Users can be in the same (Downlink) of in different (Uplink) transmitter
 #   Generator does not take into account where the user signals are merged
-# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 06.08.2018 18:23
+# Last modification by Marko Kosunen, marko.kosunen@aalto.fi, 07.08.2018 15:17
 import sys
 import numpy as np
 import scipy.signal as sig
@@ -32,7 +32,7 @@ class f2_signal_gen(thesdk):
         self.Bits=10
         self.Digital_mode='2C'                  #Two's complement
         self.Disableuser=[]
-        self.Disableuser= [ self.Disableuser.append(False) for i in range(self.Users) ]         #Disable data transmission for cerrtain users
+        self.Disableuser= [ self.Disableuser.append('False') for i in range(self.Users) ]         #Disable data transmission for cerrtain users
         self.bbsigdict={ 'mode':'sinusoid', 'freqs':[11.0e6 , 13e6, 17e6 ], 'length':2**14, 'BBRs':40e6 };  #Mode of the baseband signal. Let's start with sinusoids
 
         self.model='py';                        #can be set externally, but is not propagated
