@@ -39,7 +39,7 @@ class f2_signal_gen(thesdk):
         self._filterlist=[]                     #list of interpolation filters
         self._qam_reference=[]                  #Reference symbols stream for EVM
         self._bitstream_reference=[]            #Reference bit stream for BER 
-        self._Z = refptr();
+        self._Z = IO();
         self._classfile=__file__                #needed only if rtl defined as superclass
         self.DEBUG= False
         if len(arg)>=1:
@@ -67,12 +67,12 @@ class f2_signal_gen(thesdk):
             self._bitstream_reference=self.sg802_11n._bitstream_reference
         
         if self.Digital=='True':
-            digitize_argdict={'signal':self._Z.Value, 'Bits':self.Bits, 
+            digitize_argdict={'signal':self._Z.Data, 'Bits':self.Bits, 
                     'Scale':self.Txpower, 'mode':self.Digital_mode }
             if digitize_argdict['Scale']>0:
-                self.print_log({'type':'I', 'msg':"Digitizer scale > 0dB. Defaulting to 0 dB"})
+                self.print_log(type='I', msg="Digitizer scale > 0dB. Defaulting to 0 dB")
                 digitize_argdict['Scale']=0
-            self._Z.Value=digitize(**digitize_argdict)
+            self._Z.Data=digitize(**digitize_argdict)
 
     def run(self): #Just an alias for init to be consistent: run() executes the core function
         self.init()
@@ -89,7 +89,7 @@ class f2_signal_gen(thesdk):
                 out[i,:,:]=usersig
             
             out=self.interpolate_at_antenna({'signal':out})
-            self._Z.Value=out 
+            self._Z.Data=out 
 
     def ofdm_sinusoid(self):
          self.sg802_11n.ofdm_sinusoid()
@@ -99,20 +99,20 @@ class f2_signal_gen(thesdk):
     def ofdm_random_802_11n(self):
          out=self.sg802_11n.gen_random_802_11n_ofdm()
          out=self.interpolate_at_antenna({'signal':out})
-         self.print_log({'type':'D', 'msg':out.shape})
-         self.print_log({'type':'D', 'msg':"Test"})
+         self.print_log(type='D', msg=out.shape)
+         self.print_log(type='D', msg="Test")
          test=out[0,320+16:320+80,0]
          test.shape=(-1,1)
-         self.print_log({'type':'D', 'msg':test.shape})
+         self.print_log(type='D', msg=test.shape)
          test=np.fft.fft(test,axis=0)/64
-         self.print_log({'type':'D', 'msg':test[Freqmap]})
-         self._Z.Value=out
-         #self.print_log({'type':'D', 'msg':self._Z.Value[0,320+16:320+80,0]})
-         test=self._Z.Value[0,320+16:320+80,0]
+         self.print_log(type='D', msg=test[Freqmap])
+         self._Z.Data=out
+         #self.print_log(type='D', msg=self._Z.Data[0,320+16:320+80,0])
+         test=self._Z.Data[0,320+16:320+80,0]
          test.shape=(-1,1)
-         self.print_log({'type':'D', 'msg':test.shape})
+         self.print_log(type='D', msg=test.shape)
          test=np.fft.fft(test,axis=0)/64
-         self.print_log({'type':'D', 'msg':test[Freqmap]})
+         self.print_log(type='D', msg=test[Freqmap])
 
     def ofdm_random_qam(self):
          self.sg802_11n.ofdm_random_qam()
@@ -120,18 +120,18 @@ class f2_signal_gen(thesdk):
 
     def set_transmit_power(self):
          t=[]
-         for user in range(self._Z.Value.shape[0]):
-             for antenna in range(self._Z.Value.shape[2]):
+         for user in range(self._Z.Data.shape[0]):
+             for antenna in range(self._Z.Data.shape[2]):
                  if not self.sg802_11n.Disableuser[user]:
-                     t=np.r_['0',t, self._Z.Value[user,:,antenna]]
+                     t=np.r_['0',t, self._Z.Data[user,:,antenna]]
          Vrmscurrent=np.std(t)
 
          Vrms=np.sqrt(1e-3*50*10**(self.Txpower/10))
-         for user in range(self._Z.Value.shape[0]):
-             for antenna in range(self._Z.Value.shape[2]):
+         for user in range(self._Z.Data.shape[0]):
+             for antenna in range(self._Z.Data.shape[2]):
                  msg="Setting transmit Rms signal amplitude to from %f to %f Volts corresponding to %f dBm transmit power to 50 ohms" %(float(Vrmscurrent), float(Vrms), float(self.Txpower))
-                 self.print_log({'type':'I', 'msg': msg}) 
-                 self._Z.Value[user,:,antenna]=self._Z.Value[user,:,antenna]/Vrmscurrent*Vrms
+                 self.print_log(type='I', msg=msg) 
+                 self._Z.Data[user,:,antenna]=self._Z.Data[user,:,antenna]/Vrmscurrent*Vrms
 
     def interpolate_at_antenna(self,argdict={'signal':[]}):
         ratio=self.Rs/self.bbsigdict['BBRs']
@@ -139,10 +139,10 @@ class f2_signal_gen(thesdk):
         #Currently fixeed interpolation. check the function definitions for details
         factors=factor({'n':ratio})
         msg="Interpolation factors at antenna are %s" %(factors)
-        self.print_log({'type':'I', 'msg': msg}) 
+        self.print_log(type='I', msg=msg) 
         filterlist=self.generate_interpolation_filterlist({'interp_factor':ratio})
         msg="Signal length is now %i" %(signal.shape[1])
-        self.print_log({'type':'I', 'msg': msg}) 
+        self.print_log(type='I', msg=msg) 
         #This is to enable growth of the signal length that better mimics the hardware
         #sig.resample_poly is more effective, but does not allow growth.
         for user in range(signal.shape[0]):
@@ -160,7 +160,7 @@ class f2_signal_gen(thesdk):
                 else:
                     signali[user,:,antenna]=t
         msg="Signal length is now %i" %(signali.shape[1])
-        self.print_log({'type':'I', 'msg': msg}) 
+        self.print_log(type='I', msg=msg) 
         self._filterlist=filterlist
         return signali
 
@@ -170,7 +170,7 @@ class f2_signal_gen(thesdk):
         
         attenuation=70 #Desired attenuation in decibels
         factors=factor({'n':interp_factor})
-        #self.print_log({'type':'D', 'msg':factors})
+        #self.print_log(type='D', msg=factors)
         fsample=1
         BW=0.45
         numtaps=65     # TAps for the first filterThis should be somehow verified
@@ -183,29 +183,29 @@ class f2_signal_gen(thesdk):
         if interp_factor >1:
             for i in factors:
                 fact=i
-                #self.print_log({'type':'D', 'msg':fsample})
+                #self.print_log(type='D', msg=fsample)
                 if  fsample/(0.5)<= 8: #FIR is needed
                     msg= "BW to sample rate ratio is now %s" %(fsample/0.5)
-                    self.print_log({'type': 'I', 'msg':msg })
+                    self.print_log(type='I', msg=msg )
                     msg="Interpolation by %i" %(fact)
-                    self.print_log({'type': 'I', 'msg':msg })
+                    self.print_log(type='I', msg=msg )
                     bands=np.array([0, BW, (fsample*fact/2-BW), fact*fsample/2])
                     filterlist.append(sig.remez(numtaps, bands, desired, Hz=fact*fsample))
                     fsample=fsample*fact #increase the sample frequency
                     numtaps=np.amax([3, int(np.floor(numtaps/fact)) + int((np.floor(numtaps/fact)%2-1))]) 
                 else:
-                    self.print_log({'type':'I', 'msg':"BW to sample rate ratio is now %s" %(fsample/0.5)})
+                    self.print_log(type='I', msg="BW to sample rate ratio is now %s" %(fsample/0.5))
                     fact=fnc.reduce(lambda x,y:x*y,factors)/fsample
-                    self.print_log({'type':'I', 'msg':"Interpolation with 3-stage CIC-filter by %i" %(fact)})
+                    self.print_log(type='I', msg="Interpolation with 3-stage CIC-filter by %i" %(fact))
                     fircoeffs=np.ones(int(fact))/(fact) #do the rest of the interpolation with 3-stage CIC-filter
                     fircoeffs=fnc.reduce(lambda x,y: np.convolve(x,y),list([fircoeffs, fircoeffs, fircoeffs]))
                     filterlist.append(fircoeffs)
-                    #self.print_log({'type':'D', 'msg':filterlist})
+                    #self.print_log(type='D', msg=filterlist)
                     fsample=fsample*fact #increase the sample frequency
-                    self.print_log({'type':'I', 'msg':"BW to sample rate ratio is now %s" %(fsample/0.5)})
+                    self.print_log(type='I', msg="BW to sample rate ratio is now %s" %(fsample/0.5))
                     break
         else:
-            self.print_log({'type':'I', 'msg':"Interpolation ratio is 1. Generated unit coefficient"})
+            self.print_log(type='I', msg="Interpolation ratio is 1. Generated unit coefficient")
             filterlist.append([1.0]) #Ensure correct operation in unexpected situations.
         return filterlist
     
@@ -262,18 +262,18 @@ if __name__=="__main__":
     t.DEBUG='True'
     t.init()
     #t.set_transmit_power()
-    #self.print_log({'type':'D', 'msg':np.std(t._Z.Value,axis=1)})
-    #self.print_log({'type':'D', 'msg':t._Z.Value})
-    #self.print_log({'type':'D', 'msg':t._Z.Value.shape})
-    #n=t._Z.Value/np.std(t._Z.Value,axis=1)
-    t.print_log({'type':'D', 'msg':np.max(t._Z.Value)})
-    t.print_log({'type':'D', 'msg':t._Z.Value.shape})
-    #self.print_log({'type':'D', 'msg':filt})
-    #self.print_log({'type':'D', 'msg':filt.shape})
+    #self.print_log(type='D', msg=np.std(t._Z.Data,axis=1))
+    #self.print_log(type='D', msg=t._Z.Data)
+    #self.print_log(type='D', msg=t._Z.Data.shape)
+    #n=t._Z.Data/np.std(t._Z.Data,axis=1)
+    t.print_log({'type':'D', 'msg':np.max(t._Z.Data)})
+    t.print_log({'type':'D', 'msg':t._Z.Data.shape})
+    #self.print_log(type='D', msg=filt)
+    #self.print_log(type='D', msg=filt.shape)
     #tf=factor(8)
-    #self.print_log({'type':'D', 'msg':tf})
+    #self.print_log(type='D', msg=tf)
     #tf=factor(80)
-    #self.print_log({'type':'D', 'msg':tf})
+    #self.print_log(type='D', msg=tf)
     filt=t._filterlist
     for i in filt:
         w, h = sig.freqz(i)
